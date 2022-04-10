@@ -46,8 +46,11 @@ public class ArchonArcanaImages
 
     static async Task ScrapImg(HttpClient httpClient, string url, string fileName)
     {
+        var folder = "images_hd";
+        if (!Directory.Exists(folder))
+            Directory.CreateDirectory(folder);
         
-        if (File.Exists(Path.Combine("images", fileName.Replace("StarAlliance","Star_Alliance") + ".png")))
+        if (File.Exists(Path.Combine(folder, fileName.Replace("StarAlliance","Star_Alliance") + ".png")))
         {
             Console.WriteLine($"Skip: {fileName}");
             return;
@@ -67,22 +70,7 @@ public class ArchonArcanaImages
         var div = doc.DocumentNode.SelectSingleNode("//div[@class='fullImageLink']");
         var imgPath = div.SelectSingleNode("a").GetAttributeValue("href", null);
         var imgSrc = $"https://archonarcana.com/{imgPath}";
-        await Download(httpClient, "images", fileName, new Uri(imgSrc));
+        await Util.DownloadImage(httpClient, folder, fileName, new Uri(imgSrc));
     }
 
-    static async ValueTask Download(HttpClient client, string directoryPath, string fileName, Uri uri)
-    {
-        var uriWithoutQuery = uri.GetLeftPart(UriPartial.Path);
-        var fileExtension = Path.GetExtension(uriWithoutQuery);
-        var path = Path.Combine(directoryPath, $"{fileName}{fileExtension}");
-        
-        var response = await client.GetAsync(uri);
-        if (!response.IsSuccessStatusCode)
-        {
-            Console.Error.WriteLine($"*** Cant donwload image in '{uri}' gives {response.StatusCode}");
-        }
-
-        var imageBytes = await response.Content.ReadAsByteArrayAsync();
-        await File.WriteAllBytesAsync(path, imageBytes);
-    }
 }

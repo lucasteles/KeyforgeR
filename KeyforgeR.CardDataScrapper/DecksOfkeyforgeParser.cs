@@ -14,7 +14,32 @@ public class DecksOfkeyforgeParser
 
         var cardsJson = await File.ReadAllTextAsync(rawFileName);
         var cards = JsonSerializer.Deserialize<Card[]>(cardsJson)!;
+
+        await DownloadImages(cards);
+        
         return cards;
+    }
+
+    static async Task DownloadImages(Card[] cards)
+    {
+        var folder = "images";
+        using var client = new HttpClient();
+        if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+        var semaphore = new SemaphoreSlim(10);
+
+        var tasks = cards.Select(card => Task.Run(async () =>
+        {
+            await semaphore.WaitAsync();
+            var filename = $"{card.expansion}-{card.cardNumber}";
+            var ext = Path.GetExtension(card.frontImage);
+            if (File.Exists(Path.Combine(folder, filename + ext)))
+                return;
+            Console.WriteLine($"=> {card.expansion}: #{card.cardNumber} - {card.cardTitle}");
+            await Util.DownloadImage(client, folder, filename, new Uri(card.frontImage));
+            semaphore.Release();
+        }));
+
+        await Task.WhenAll(tasks);
     }
 
     static async Task DownloadCards(string myKey)
